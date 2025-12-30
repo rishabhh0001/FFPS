@@ -3,548 +3,330 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forest Fire Detection System - 3D Simulation</title>
-    <meta name="description" content="Interactive 3D simulation of a forest fire detection system using IoT sensors and Three.js">
-    <meta name="keywords" content="forest fire detection, IoT, Three.js, simulation, STM32, XBEE">
-    <meta name="author" content="Your Name">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+    <title>Forest Fire Detection System | STM32 & Zigbee WSN</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.85);
+            --border-color: rgba(148, 163, 184, 0.2);
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            margin: 0;
-            background: linear-gradient(135deg, #050505 0%, #0a0a0a 50%, #050505 100%);
-            font-family: 'Rajdhani', sans-serif;
-            color: white;
-            line-height: 1.6;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* 3D Canvas takes full screen */
+            height: 100vh;
+            width: 100vw;
         }
 
-        header {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            background: rgba(5, 5, 5, 0.9);
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-            padding: 1rem 0;
-            border-bottom: 1px solid #00ff9d;
-        }
-
-        nav {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 2rem;
-        }
-
-        .logo {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            color: #00ff9d;
-            text-decoration: none;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-        }
-
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-
-        .nav-links a:hover {
-            color: #00ff9d;
-        }
-
-        main {
-            margin-top: 80px;
-        }
-
-        section {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 4rem 2rem;
-        }
-
-        #hero {
-            position: relative;
-            background: radial-gradient(circle at center, rgba(0, 255, 157, 0.1) 0%, transparent 70%);
-        }
-
+        /* --- 3D Canvas --- */
         #canvas-container {
-            width: 100%;
-            max-width: 1200px;
-            height: 60vh;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 50px rgba(0, 255, 157, 0.3);
-            display: block;
-        }
-
-        #about, #components {
-            background: rgba(5, 5, 5, 0.5);
-            backdrop-filter: blur(5px);
-        }
-
-        .section-content {
-            max-width: 1200px;
-            text-align: center;
-        }
-
-        #about h2, #components h2 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 3rem;
-            margin-bottom: 2rem;
-            background: linear-gradient(90deg, #00ff9d, #00b8ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        #about p {
-            font-size: 1.2rem;
-            max-width: 800px;
-            margin: 0 auto 2rem;
-            color: #ccc;
-        }
-
-        footer {
-            background: rgba(5, 5, 5, 0.9);
-            padding: 2rem;
-            text-align: center;
-            border-top: 1px solid #333;
-        }
-
-        footer p {
-            margin: 0;
-            color: #888;
-        }
-
-        /* Loading Screen */
-        #loading-screen {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #050505;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            transition: opacity 0.5s;
+            z-index: 1;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
         }
 
-        .loading-content {
-            text-align: center;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid #333;
-            border-top: 3px solid #00ff9d;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 2rem;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            color: #00ff9d;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .nav-links {
-                display: none;
-            }
-
-            #canvas-container {
-                height: 50vh;
-            }
-
-            #about h2, #components h2 {
-                font-size: 2rem;
-            }
-
-            .ui-panel {
-                padding: 10px;
-            }
-
-            .status-panel {
-                width: 200px;
-                right: 10px;
-                top: 10px;
-            }
-
-            .controls {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            button {
-                padding: 10px 20px;
-                font-size: 1rem;
-            }
-        }
-
-        /* UI Overlays */
-        .ui-panel {
+        /* --- UI Overlay Layer --- */
+        #ui-layer {
             position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
             pointer-events: none; /* Let clicks pass through to 3D */
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            grid-template-rows: auto 1fr auto;
             padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .header {
-            text-align: center;
-            text-shadow: 0 0 10px #00ff9d;
-            pointer-events: auto;
-        }
-
-        h1 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5rem;
-            margin: 0;
-            background: linear-gradient(90deg, #00ff9d, #00b8ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .controls {
-            display: flex;
-            justify-content: center;
             gap: 20px;
-            pointer-events: auto;
-            margin-bottom: 20px;
         }
 
-        button {
-            background: rgba(0, 20, 10, 0.8);
-            border: 1px solid #00ff9d;
-            color: #00ff9d;
-            padding: 15px 30px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            backdrop-filter: blur(5px);
-            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
-        }
-
-        button:hover {
-            background: #00ff9d;
-            color: #000;
-            box-shadow: 0 0 20px rgba(0, 255, 157, 0.5);
-        }
-
-        button:active {
-            transform: scale(0.95);
-        }
-
-        /* Status Indicators */
-        .status-panel {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid #333;
+        /* --- Panels --- */
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
             padding: 20px;
-            width: 250px;
-            pointer-events: auto;
-            border-left: 3px solid #00ff9d;
+            pointer-events: auto; /* Re-enable clicks on panels */
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            transition: transform 0.3s ease;
         }
 
-        .status-item {
-            margin-bottom: 10px;
+        .panel h2 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 5px;
+        }
+
+        /* Top Header */
+        header {
+            grid-column: 1 / -1;
             display: flex;
             justify-content: space-between;
-        }
-
-        .status-label { color: #888; }
-        .status-value { font-weight: bold; color: #00ff9d; }
-        .status-value.alert { color: #ff3333; animation: blink 0.5s infinite; }
-
-        @keyframes blink { 50% { opacity: 0.5; } }
-
-        /* Component Slides Overlay */
-        #slides-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(5, 5, 5, 0.95);
-            backdrop-filter: blur(20px);
-            z-index: 100;
-            display: none; /* Hidden by default */
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
             pointer-events: auto;
         }
 
-        .slide-content {
-            width: 80%;
-            max-width: 1000px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            animation: fadeIn 0.5s ease;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        }
-
-        .slide-text h2 {
-            font-family: 'Orbitron';
-            color: #00ff9d;
-            border-bottom: 2px solid #00ff9d;
-            padding-bottom: 10px;
-        }
-
-        .component-list {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
+        .brand {
+            display: flex;
+            align-items: center;
             gap: 15px;
         }
 
-        .component-item {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(10px);
-            padding: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
+        .brand h1 { font-size: 1.2rem; font-weight: 600; }
+        .brand span { color: var(--primary); background: rgba(59, 130, 246, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+
+        /* Left Control Panel */
+        #controls-panel {
+            grid-column: 1;
+            grid-row: 2;
+            align-self: start;
+        }
+
+        .control-group {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.3s ease;
+            flex-direction: column;
+            gap: 8px;
         }
 
-        .component-item:hover {
-            background: rgba(255, 255, 255, 0.12);
-            transform: translateY(-2px);
+        .control-group label {
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
         }
 
-        .component-item i { color: #ff6b00; }
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+            height: 4px;
+            background: #334155;
+            border-radius: 2px;
+            appearance: none;
+        }
 
-        .close-btn {
-            position: absolute;
-            top: 90px;
-            right: 30px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--text-main);
             border-radius: 50%;
-            color: #fff;
-            font-size: 1.5rem;
             cursor: pointer;
-            width: 50px;
-            height: 50px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+        }
+
+        .value-display {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--primary);
+        }
+
+        /* Right Status Panel */
+        #status-panel {
+            grid-column: 3;
+            grid-row: 2;
+            align-self: start;
+        }
+
+        .status-row {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border-color);
         }
 
-        .close-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.1);
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #334155;
+            box-shadow: 0 0 5px currentColor;
         }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .status-indicator.safe { background-color: var(--success); color: var(--success); }
+        .status-indicator.warning { background-color: var(--warning); color: var(--warning); }
+        .status-indicator.danger { background-color: var(--danger); color: var(--danger); animation: pulse 0.5s infinite alternate; }
 
-        /* Labels in 3D space */
-        .label {
+        @keyframes pulse { from { opacity: 1; } to { opacity: 0.4; } }
+
+        /* Footer / Logs */
+        #logs-panel {
+            grid-column: 1 / -1;
+            grid-row: 3;
+            height: 150px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            overflow-y: auto;
+        }
+
+        .log-entry { margin-bottom: 4px; display: flex; gap: 10px; }
+        .log-time { color: var(--text-muted); }
+        .log-msg { color: var(--text-main); }
+        .log-msg.alert { color: var(--danger); font-weight: bold; }
+        .log-msg.tx { color: var(--primary); }
+
+        /* 3D Label Styles */
+        .label-3d {
             position: absolute;
-            color: white;
-            font-family: 'Rajdhani', sans-serif;
-            background: rgba(0,0,0,0.6);
-            padding: 2px 5px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--primary);
+            padding: 4px 8px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 10px;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
             pointer-events: none;
-            user-select: none;
-            border: 1px solid #444;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            #ui-layer {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto 1fr;
+                overflow-y: auto;
+                pointer-events: auto;
+            }
+            #controls-panel, #status-panel { grid-column: 1; }
+            #logs-panel { display: none; }
         }
     </style>
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Three.js -->
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- OrbitControls (Usually separate, including a minified version for single-file) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <!-- TWEEN for animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
 </head>
 <body>
-    <!-- Loading Screen -->
-    <div id="loading-screen">
-        <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading Simulation...</div>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <header>
+            <div class="brand">
+                <i class="fa-solid fa-tower-broadcast" style="color: var(--primary)"></i>
+                <div>
+                    <h1>Fire Detection Sys.</h1>
+                    <span style="color: var(--text-muted); font-size: 0.7rem">STM32F303RET6 + Zigbee (IEEE 802.15.4)</span>
+                </div>
+            </div>
+            <div style="text-align: right">
+                <button onclick="resetSim()" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: 'Inter';">
+                    <i class="fa-solid fa-rotate-right"></i> Reset System
+                </button>
+            </div>
+        </header>
+
+        <div id="controls-panel" class="panel">
+            <h2><i class="fa-solid fa-sliders"></i> Environmental Inputs</h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
+                Simulate environmental conditions to test the Dual-Verification Logic.
+            </p>
+
+            <div class="control-group">
+                <label>
+                    <span><i class="fa-solid fa-temperature-half"></i> Ambient Temp (DHT22)</span>
+                    <span class="value-display" id="val-temp">24.0°C</span>
+                </label>
+                <input type="range" id="input-temp" min="10" max="100" value="24" step="0.5">
+                <small style="color: var(--text-muted); font-size: 0.7rem">Threshold: >50°C</small>
+            </div>
+
+            <div class="control-group">
+                <label>
+                    <span><i class="fa-solid fa-smog"></i> Gas/Smoke (MQ-2)</span>
+                    <span class="value-display" id="val-gas">40 PPM</span>
+                </label>
+                <input type="range" id="input-gas" min="0" max="500" value="40" step="1">
+                <small style="color: var(--text-muted); font-size: 0.7rem">Threshold: >180 PPM</small>
+            </div>
         </div>
-    </div>
 
-    <!-- Header -->
-    <header>
-        <nav>
-            <a href="#hero" class="logo">Forest Fire Detection</a>
-            <div class="nav-links">
-                <a href="#hero">Simulation</a>
-                <a href="#about">About</a>
-                <a href="#components">Components</a>
+        <div id="status-panel" class="panel">
+            <h2><i class="fa-solid fa-microchip"></i> System Telemetry</h2>
+            
+            <div class="status-row">
+                <span>Node 1 (Forest)</span>
+                <span class="status-indicator safe" id="ind-node1"></span>
             </div>
-        </nav>
-    </header>
+            <div class="status-row">
+                <span>Dual-Logic State</span>
+                <span id="text-state" style="color: var(--success)">SAFE</span>
+            </div>
+            <div class="status-row">
+                <span>Zigbee Link</span>
+                <span id="text-link" style="color: var(--text-muted)">IDLE</span>
+            </div>
+            <div class="status-row">
+                <span>Node 2 (HQ)</span>
+                <span class="status-indicator safe" id="ind-node2"></span>
+            </div>
+            <div class="status-row">
+                <span>HQ Buzzer</span>
+                <span id="text-buzzer">OFF</span>
+            </div>
+        </div>
 
-    <!-- Main Content -->
-    <main>
-        <!-- Hero Section with Simulation -->
-        <section id="hero">
-            <div class="section-content">
-                <h1>Interactive 3D Forest Fire Detection Simulation</h1>
-                <p>Experience real-time IoT sensor monitoring and wireless communication in action</p>
-                <div id="canvas-container"></div>
-
-                <!-- UI Overlay for Simulation -->
-                <div class="ui-panel">
-                    <div class="header">
-                        <h1>FOREST FIRE SIMULATION</h1>
-                        <p>STM32 • XBEE • SENSORS • IOT</p>
-                    </div>
-
-                    <div class="status-panel">
-                        <h3>SYSTEM STATUS</h3>
-                        <div class="status-item">
-                            <span class="status-label">Signal:</span>
-                            <span class="status-value" id="status-signal">Idle</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">Temperature:</span>
-                            <span class="status-value" id="status-temp">24°C</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">Smoke Lvl:</span>
-                            <span class="status-value" id="status-smoke">Normal</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">Alert:</span>
-                            <span class="status-value" id="status-alert">NONE</span>
-                        </div>
-                    </div>
-
-                    <div class="controls">
-                        <button onclick="toggleSlides()">Components</button>
-                        <button onclick="startSimulation()" style="border-color: #ff6b00; color: #ff6b00;">TRIGGER FIRE</button>
-                        <button onclick="resetSimulation()">RESET</button>
-                    </div>
+        <div id="logs-panel" class="panel">
+            <h2><i class="fa-solid fa-terminal"></i> Serial Output / Logs</h2>
+            <div id="log-content">
                 </div>
-            </div>
-        </section>
-
-        <!-- About Section -->
-        <section id="about">
-            <div class="section-content">
-                <h2>About the Project</h2>
-                <p>This interactive 3D simulation demonstrates a comprehensive forest fire detection system using IoT technologies. The system consists of two main nodes: a Forest Node equipped with environmental sensors and a Headquarters Node for monitoring and alerting.</p>
-                <p>The simulation showcases real-time data transmission via XBee wireless modules, sensor readings, and automated alert mechanisms that activate when fire conditions are detected.</p>
-                <div style="margin-top: 2rem; padding: 1rem; background: rgba(0, 255, 157, 0.1); border-left: 4px solid #00ff9d;">
-                    <strong>Key Features:</strong>
-                    <ul style="color: #ccc; margin-top: 0.5rem;">
-                        <li>Real-time 3D visualization of IoT components</li>
-                        <li>Wireless communication simulation</li>
-                        <li>Environmental sensor monitoring</li>
-                        <li>Automated alert system</li>
-                        <li>Interactive controls and status monitoring</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-
-        <!-- Components Section -->
-        <section id="components">
-            <div class="section-content">
-                <h2>Hardware Components</h2>
-                <p>The core components required to build the Forest Fire Detection Node and Headquarters Receiver.</p>
-                <div style="margin-top: 2rem; border-left: 3px solid #ff6b00; padding-left: 15px; color: #aaa;">
-                    "Reliable detection starts with robust hardware."
-                </div>
-                <div class="component-list">
-                    <div class="component-item"><i class="fa-solid fa-microchip"></i> <span>STM32F303RET6 Nucleo (x2)</span></div>
-                    <div class="component-item"><i class="fa-solid fa-wifi"></i> <span>XBee Modules (x2)</span></div>
-                    <div class="component-item"><i class="fa-solid fa-fire"></i> <span>MQ-2 Gas Sensor</span></div>
-                    <div class="component-item"><i class="fa-solid fa-temperature-high"></i> <span>DHT-22 Sensor</span></div>
-                    <div class="component-item"><i class="fa-solid fa-tv"></i> <span>16x2 LCD Display</span></div>
-                    <div class="component-item"><i class="fa-solid fa-volume-high"></i> <span>Active Buzzer</span></div>
-                    <div class="component-item"><i class="fa-solid fa-grip-lines"></i> <span>Breadboards</span></div>
-                    <div class="component-item"><i class="fa-solid fa-plug"></i> <span>Jumper Wires</span></div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Footer -->
-    <footer>
-        <p>&copy; 2024 Forest Fire Detection System. Built with Three.js and IoT Technologies.</p>
-    </footer>
-
-    <!-- Slides Overlay (Modal for Components) -->
-    <div id="slides-overlay">
-        <button class="close-btn" onclick="toggleSlides()">&times;</button>
-        <div class="slide-content">
-            <div class="slide-text">
-                <h2>HARDWARE INVENTORY</h2>
-                <p>The core components required to build the Forest Fire Detection Node and Headquarters Receiver.</p>
-                <div style="margin-top: 20px; border-left: 3px solid #ff6b00; padding-left: 15px; color: #aaa;">
-                    "Reliable detection starts with robust hardware."
-                </div>
-            </div>
-            <div class="component-list">
-                <div class="component-item"><i class="fa-solid fa-microchip"></i> <span>STM32F303RET6 Nucleo (x2)</span></div>
-                <div class="component-item"><i class="fa-solid fa-wifi"></i> <span>XBee Modules (x2)</span></div>
-                <div class="component-item"><i class="fa-solid fa-fire"></i> <span>MQ-2 Gas Sensor</span></div>
-                <div class="component-item"><i class="fa-solid fa-temperature-high"></i> <span>DHT-22 Sensor</span></div>
-                <div class="component-item"><i class="fa-solid fa-tv"></i> <span>16x2 LCD Display</span></div>
-                <div class="component-item"><i class="fa-solid fa-volume-high"></i> <span>Active Buzzer</span></div>
-                <div class="component-item"><i class="fa-solid fa-grip-lines"></i> <span>Breadboards</span></div>
-                <div class="component-item"><i class="fa-solid fa-plug"></i> <span>Jumper Wires</span></div>
-            </div>
         </div>
     </div>
 
     <script>
+        // --- CONFIGURATION BASED ON REPORT ---
+        // Thresholds derived from Report [cite: 37, 196]
+        const CONFIG = {
+            TEMP_THRESHOLD: 50.0,
+            GAS_THRESHOLD: 180,
+            POLL_RATE: 500, // ms
+            ZIGBEE_SPEED: 800 // ms for animation
+        };
+
+        // --- STATE MANAGEMENT ---
+        let state = {
+            temp: 24.0,
+            gas: 40,
+            isAlert: false,
+            lastAlert: false
+        };
+
         // --- THREE.JS SETUP ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x050505, 0.02); // Distance fog for atmosphere
+        // Fog for depth (Forest atmosphere)
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 15, 30);
@@ -552,378 +334,441 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.1; // Don't go below ground
 
         // --- LIGHTING ---
-        const ambientLight = new THREE.AmbientLight(0x404040, 2); // Soft white light
-        scene.add(ambientLight);
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x0f172a, 0.6);
+        scene.add(hemiLight);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1);
         dirLight.position.set(10, 20, 10);
         dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
         scene.add(dirLight);
 
-        const pointLight = new THREE.PointLight(0x00ff9d, 0.5);
-        pointLight.position.set(-10, 5, 0);
-        scene.add(pointLight);
-
         // --- MATERIALS ---
-        const breadboardMat = new THREE.MeshPhongMaterial({ color: 0xdddddd });
-        const pcbGreenMat = new THREE.MeshPhongMaterial({ color: 0x004400, shininess: 100 });
-        const pcbBlueMat = new THREE.MeshPhongMaterial({ color: 0x003366, shininess: 100 });
-        const blackMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
-        const silverMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 });
-        const lcdOffMat = new THREE.MeshPhongMaterial({ color: 0x334433 });
-        const whitePlasticMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
-        const wireMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Red wires
-        
-        // --- TEXTURE GENERATION FOR LCD ---
-        function createTextTexture(text, color, bgColor) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(0, 0, 256, 64);
-            ctx.font = 'bold 30px monospace';
-            ctx.fillStyle = color;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(text, 128, 32);
-            const tex = new THREE.CanvasTexture(canvas);
-            return tex;
+        const mats = {
+            pcbBlue: new THREE.MeshPhongMaterial({ color: 0x0044cc, shininess: 80 }), // STM32 Blue
+            pcbGreen: new THREE.MeshPhongMaterial({ color: 0x005500, shininess: 50 }),
+            blackPlastic: new THREE.MeshPhongMaterial({ color: 0x111111, roughness: 0.6 }),
+            whitePlastic: new THREE.MeshPhongMaterial({ color: 0xf8fafc }),
+            metal: new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.3 }),
+            wireRed: new THREE.MeshBasicMaterial({ color: 0xef4444 }),
+            wireBlack: new THREE.MeshBasicMaterial({ color: 0x1e293b }),
+            wireYell: new THREE.MeshBasicMaterial({ color: 0xf59e0b }),
+            ground: new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 1 }),
+            tree: new THREE.MeshLambertMaterial({ color: 0x1e293b }) // Low poly dark trees
+        };
+
+        // --- ASSET GENERATION FUNCTIONS ---
+
+        // 1. STM32 Nucleo Board (Detailed)
+        function createNucleo(x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.2, z);
+
+            // PCB
+            const pcb = new THREE.Mesh(new THREE.BoxGeometry(5, 0.15, 7), mats.pcbBlue);
+            pcb.castShadow = true;
+            group.add(pcb);
+
+            // MCU (Black Chip)
+            const mcu = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 1.2), mats.blackPlastic);
+            mcu.position.y = 0.15;
+            mcu.rotation.y = Math.PI / 4;
+            group.add(mcu);
+
+            // Headers (Black strips)
+            const headerGeom = new THREE.BoxGeometry(0.3, 0.4, 6);
+            const h1 = new THREE.Mesh(headerGeom, mats.blackPlastic); h1.position.set(-2.2, 0.2, 0);
+            const h2 = new THREE.Mesh(headerGeom, mats.blackPlastic); h2.position.set(2.2, 0.2, 0);
+            group.add(h1, h2);
+
+            // USB Connector
+            const usb = new THREE.Mesh(new THREE.BoxGeometry(1, 0.5, 0.8), mats.metal);
+            usb.position.set(0, 0.2, -3.2);
+            group.add(usb);
+
+            scene.add(group);
+            return group;
         }
 
-        const lcdSafeTex = createTextTexture("STATUS: SAFE", "#000000", "#99cc00");
-        const lcdFireTex = createTextTexture("!! FIRE !!", "#000000", "#ff3300");
-        const lcdMat = new THREE.MeshBasicMaterial({ map: lcdSafeTex });
+        // 2. Zigbee Module
+        function createZigbee(parent, x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.5, z);
 
-        // --- OBJECT CREATION HELPERS ---
+            // Board
+            const board = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 2.5), mats.pcbGreen);
+            group.add(board);
 
-        function createBreadboard(x, z) {
-            const board = new THREE.Mesh(new THREE.BoxGeometry(14, 0.5, 6), breadboardMat);
-            board.position.set(x, 0, z);
-            board.castShadow = true;
-            board.receiveShadow = true;
-            
-            // Add central groove
-            const groove = new THREE.Mesh(new THREE.BoxGeometry(14, 0.1, 0.2), blackMat);
-            groove.position.y = 0.26;
-            board.add(groove);
-            
-            scene.add(board);
-            return board;
+            // Antenna (Geometric)
+            const ant = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.5), mats.metal);
+            ant.position.z = 1.3;
+            group.add(ant);
+
+            // Shield
+            const shield = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.2, 1.5), mats.metal);
+            shield.position.y = 0.15;
+            group.add(shield);
+
+            parent.add(group);
+            return group;
         }
 
-        function createSTM32(parent, x, z) {
-            const pcb = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 1.5), pcbBlueMat);
-            pcb.position.set(x, 0.5, z);
-            
-            // Chip
-            const chip = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 1), blackMat);
-            chip.position.y = 0.15;
-            pcb.add(chip);
-            
-            // USB Port
-            const usb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.5), silverMat);
-            usb.position.set(-1.8, 0.1, 0);
-            pcb.add(usb);
-            
-            parent.add(pcb);
-            return pcb;
-        }
-
-        function createXBee(parent, x, z) {
-            const pcb = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 1.5), pcbGreenMat);
-            pcb.position.set(x, 0.5, z);
-            
-            // Antenna
-            const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1), blackMat);
-            ant.rotation.x = Math.PI / 2;
-            ant.position.set(0.8, 0, 0);
-            pcb.add(ant);
-            
-            parent.add(pcb);
-            return pcb;
-        }
-
+        // 3. MQ-2 Sensor
         function createMQ2(parent, x, z) {
-            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.5, 32), silverMat);
-            base.position.set(x, 0.6, z);
-            
-            const meshTop = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16, 0, Math.PI * 2, 0, Math.PI/2), blackMat);
-            meshTop.position.y = 0.25;
-            base.add(meshTop);
-            
-            parent.add(base);
-            return base;
+            const group = new THREE.Group();
+            group.position.set(x, 0.5, z);
+
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.5, 32), mats.blackPlastic);
+            group.add(base);
+
+            const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.4, 32), mats.metal);
+            mesh.position.y = 0.45;
+            group.add(mesh);
+
+            parent.add(group);
+            return group;
         }
 
-        function createDHT22(parent, x, z) {
-            const box = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.4), whitePlasticMat);
-            box.position.set(x, 0.9, z);
-            
-            // Grille
-            const grille = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), blackMat);
-            grille.position.z = 0.21;
-            grille.position.y = 0.1;
-            box.add(grille);
-            
-            parent.add(box);
-            return box;
+        // 4. DHT22 Sensor
+        function createDHT(parent, x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.5, z);
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2, 0.6), mats.whitePlastic);
+            body.position.y = 0.5;
+            group.add(body);
+
+            // Grille texture simulation
+            const grille = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.2), mats.blackPlastic);
+            grille.position.set(0, 0.5, 0.31);
+            group.add(grille);
+
+            parent.add(group);
+            return group;
         }
 
+        // 5. 20x4 LCD
         function createLCD(parent, x, z) {
-            const board = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 2), pcbGreenMat);
-            board.position.set(x, 0.5, z);
-            
-            const screen = new THREE.Mesh(new THREE.BoxGeometry(3, 0.1, 1), lcdMat);
-            screen.position.y = 0.15;
-            board.add(screen);
-            
-            parent.add(board);
-            return { mesh: board, screenMat: lcdMat };
-        }
+            const group = new THREE.Group();
+            group.position.set(x, 0.5, z);
 
-        function createBuzzer(parent, x, z) {
-            const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.4), blackMat);
-            cyl.position.set(x, 0.5, z);
-            parent.add(cyl);
-            return cyl;
-        }
+            const pcb = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 3), mats.pcbGreen);
+            group.add(pcb);
 
-        function createWire(parent, start, end) {
-             // Simple bezier curve for wire
-             const curve = new THREE.QuadraticBezierCurve3(
-                new THREE.Vector3(start.x, 0.5, start.z),
-                new THREE.Vector3((start.x+end.x)/2, 2, (start.z+end.z)/2), // High arch
-                new THREE.Vector3(end.x, 0.5, end.z)
-            );
-            const points = curve.getPoints(20);
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const line = new THREE.Line(geometry, wireMat);
-            parent.add(line);
-        }
+            const bezel = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.1, 2.5), mats.blackPlastic);
+            bezel.position.y = 0.15;
+            group.add(bezel);
 
-        // --- SCENE ASSEMBLY ---
-
-        // 1. Forest Node (Centered Left)
-        const forestBoard = createBreadboard(-6, 0);
-        const stmForest = createSTM32(forestBoard, -3, 0);
-        const xbeeForest = createXBee(forestBoard, 0, -1.5);
-        const mq2 = createMQ2(forestBoard, 2, 0);
-        const dht22 = createDHT22(forestBoard, 4, 0);
-
-        // Labels Forest
-        function addLabel(text, x, y, z) {
-            // Using sprites for labels
+            // Dynamic Canvas Texture
             const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 256;
             const ctx = canvas.getContext('2d');
-            ctx.font = "Bold 20px Arial";
-            ctx.fillStyle = "rgba(0,0,0,0.5)";
-            ctx.fillRect(0,0, 150, 40);
-            ctx.fillStyle = "#00ff9d";
-            ctx.fillText(text, 10, 25);
+            
+            // Initial Draw
+            ctx.fillStyle = "#0011ee"; // Blue backlight
+            ctx.fillRect(0,0,512,256);
+            ctx.font = "40px monospace";
+            ctx.fillStyle = "white";
+            ctx.fillText("SYSTEM READY", 20, 60);
+
             const tex = new THREE.CanvasTexture(canvas);
-            const spriteMat = new THREE.SpriteMaterial({ map: tex });
-            const sprite = new THREE.Sprite(spriteMat);
-            sprite.position.set(x, y, z);
-            sprite.scale.set(3, 0.8, 1);
-            scene.add(sprite);
+            const screen = new THREE.Mesh(new THREE.PlaneGeometry(5, 2), new THREE.MeshBasicMaterial({ map: tex }));
+            screen.position.y = 0.21;
+            screen.rotation.x = -Math.PI/2;
+            group.add(screen);
+
+            return { group, ctx, tex };
         }
-        addLabel("FOREST NODE", -6, 4, 0);
-        addLabel("HQ NODE", 6, 4, 0);
 
-
-        // 2. HQ Node (Centered Right)
-        const hqBoard = createBreadboard(6, 0);
-        const stmHQ = createSTM32(hqBoard, -3, 0);
-        const xbeeHQ = createXBee(hqBoard, 0, -1.5);
-        const lcdObj = createLCD(hqBoard, 3, 0);
-        const buzzer = createBuzzer(hqBoard, 5, -1.5);
-
-        // 3. Wires (Visual only)
-        createWire(forestBoard, {x:-3, z:0}, {x:0, z:-1.5}); // STM -> XBee
-        createWire(forestBoard, {x:-3, z:0}, {x:2, z:0}); // STM -> MQ2
-
-        createWire(hqBoard, {x:-3, z:0}, {x:0, z:-1.5}); // STM -> XBee
-        createWire(hqBoard, {x:-3, z:0}, {x:3, z:0}); // STM -> LCD
-
-        // --- PARTICLE SYSTEM (FIRE/SMOKE) ---
-        const particleCount = 200;
-        const particlesGeom = new THREE.BufferGeometry();
-        const particlePositions = new Float32Array(particleCount * 3);
-        const particleVelocities = [];
-
-        for(let i=0; i<particleCount; i++) {
-            particlePositions[i*3] = -4 + (Math.random() * 0.5); // x (Near MQ2 position relative to world)
-            particlePositions[i*3+1] = 0.5; // y
-            particlePositions[i*3+2] = 0 + (Math.random() * 0.5); // z
-            particleVelocities.push({x: (Math.random()-0.5)*0.05, y: Math.random()*0.1, z: (Math.random()-0.5)*0.05});
+        // 6. Buzzer
+        function createBuzzer(parent, x, z) {
+            const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.6, 32), mats.blackPlastic);
+            mesh.position.set(x, 0.6, z);
+            parent.add(mesh);
+            return mesh;
         }
-        particlesGeom.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
 
-        const particleMat = new THREE.PointsMaterial({
-            color: 0xff4500,
-            size: 0.3,
-            transparent: true,
-            opacity: 0, // Hidden initially
+        // --- SCENE BUILDING ---
+
+        // Ground
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), mats.ground);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Procedural Forest (Background)
+        for(let i=0; i<100; i++) {
+            const h = 2 + Math.random() * 5;
+            const tree = new THREE.Mesh(new THREE.ConeGeometry(1, h, 8), mats.tree);
+            const r = 20 + Math.random() * 40;
+            const theta = Math.random() * Math.PI * 2;
+            tree.position.set(r * Math.cos(theta), h/2, r * Math.sin(theta));
+            scene.add(tree);
+        }
+
+        // --- TRANSMITTER NODE (LEFT) ---
+        const txNode = createNucleo(-8, 0);
+        createZigbee(txNode, 0, -1.5);
+        createMQ2(txNode, 1.5, 2);
+        const txBuzzer = createBuzzer(txNode, -1.5, 2);
+        createDHT(txNode, 3, 0);
+
+        // --- RECEIVER NODE (RIGHT) ---
+        const rxNode = createNucleo(8, 0);
+        createZigbee(rxNode, 0, -1.5);
+        const lcdObj = createLCD(rxNode, 0, 2);
+        rxNode.add(lcdObj.group);
+        const rxBuzzer = createBuzzer(rxNode, -3, 0);
+
+        // --- WIRES ---
+        function addWire(start, end, colorMat) {
+            const points = [];
+            points.push(new THREE.Vector3(start.x, start.y, start.z));
+            points.push(new THREE.Vector3(start.x, start.y + 1, start.z)); // Up
+            points.push(new THREE.Vector3((start.x+end.x)/2, start.y + 2, (start.z+end.z)/2)); // Arch
+            points.push(new THREE.Vector3(end.x, end.y + 1, end.z)); // Down
+            points.push(new THREE.Vector3(end.x, end.y, end.z));
+            
+            const curve = new THREE.CatmullRomCurve3(points);
+            const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 20, 0.05, 8, false), colorMat);
+            scene.add(tube);
+        }
+
+        // Connect TX sensors (World Coordinates approximation)
+        addWire({x: -8, y: 0.5, z: 0}, {x: -6.5, y: 0.5, z: 2}, mats.wireRed); // MQ2
+        addWire({x: -8, y: 0.5, z: 0}, {x: -5, y: 0.5, z: 0}, mats.wireYell); // DHT
+
+        // --- ANIMATION ELEMENTS ---
+
+        // Smoke Particle System
+        const smokeGeo = new THREE.BufferGeometry();
+        const smokeCount = 300;
+        const posArr = new Float32Array(smokeCount * 3);
+        for(let i=0; i<smokeCount*3; i++) posArr[i] = (Math.random()-0.5); 
+        smokeGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+        
+        const smokeMat = new THREE.PointsMaterial({
+            color: 0x888888, size: 0.5, transparent: true, opacity: 0,
             blending: THREE.AdditiveBlending
         });
+        const smokeSys = new THREE.Points(smokeGeo, smokeMat);
+        smokeSys.position.set(-6.5, 1, 2); // Above MQ2
+        scene.add(smokeSys);
 
-        const fireSystem = new THREE.Points(particlesGeom, particleMat);
-        // Correcting position to match world coordinates of MQ2 (-6 + 2 = -4)
-        fireSystem.position.set(-4, 0, 0);
-        scene.add(fireSystem);
+        // Packet (Data Transmission)
+        const packetMesh = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), new THREE.MeshBasicMaterial({color: 0x00ffff}));
+        packetMesh.visible = false;
+        scene.add(packetMesh);
 
+        // Labels
+        function createLabel(text, x, y, z) {
+            const div = document.createElement('div');
+            div.className = 'label-3d';
+            div.textContent = text;
+            document.getElementById('canvas-container').appendChild(div);
+            return { div, pos: new THREE.Vector3(x, y, z) };
+        }
+        
+        const labels = [
+            createLabel("Transmitter Node (Forest)", -8, 4, 0),
+            createLabel("Receiver Node (HQ)", 8, 4, 0),
+            createLabel("MQ-2", -6.5, 2, 2),
+            createLabel("DHT22", -5, 3, 0)
+        ];
 
-        // --- SIGNAL PACKET (Sphere) ---
-        const packet = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), new THREE.MeshBasicMaterial({color: 0x00ffff}));
-        packet.position.set(-6, 1, -1.5); // Start at Forest XBee
-        packet.visible = false;
-        scene.add(packet);
+        // --- SIMULATION LOGIC ---
 
-        // --- ANIMATION LOGIC ---
-        let isSimulating = false;
-        let fireOpacity = 0;
+        const inputTemp = document.getElementById('input-temp');
+        const inputGas = document.getElementById('input-gas');
+        const dispTemp = document.getElementById('val-temp');
+        const dispGas = document.getElementById('val-gas');
+        const logContainer = document.getElementById('log-content');
 
-        function startSimulation() {
-            if(isSimulating) return;
-            isSimulating = true;
-            
-            // 1. Start Fire
-            new TWEEN.Tween({opacity: 0})
-                .to({opacity: 1}, 1000)
-                .onUpdate(obj => {
-                    particleMat.opacity = obj.opacity;
-                    document.getElementById('status-smoke').innerText = "CRITICAL";
-                    document.getElementById('status-smoke').style.color = "#ff3333";
-                    document.getElementById('status-temp').innerText = "85°C";
-                    document.getElementById('status-temp').style.color = "#ff3333";
+        function addLog(msg, type='') {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            const time = new Date().toLocaleTimeString().split(' ')[0];
+            div.innerHTML = `<span class="log-time">[${time}]</span><span class="log-msg ${type}">${msg}</span>`;
+            logContainer.prepend(div);
+        }
+
+        function updateLCD(line1, line2, color) {
+            const ctx = lcdObj.ctx;
+            ctx.fillStyle = color === 'alert' ? '#aa0000' : '#0011ee';
+            ctx.fillRect(0,0,512,256);
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.font = "40px monospace";
+            ctx.fillText(line1, 256, 100);
+            ctx.font = "30px monospace";
+            ctx.fillText(line2, 256, 160);
+            lcdObj.tex.needsUpdate = true;
+        }
+
+        function sendZigbeePacket() {
+            document.getElementById('text-link').innerText = "TRANSMITTING";
+            document.getElementById('text-link').style.color = "#3b82f6";
+            packetMesh.visible = true;
+            packetMesh.position.set(-8, 1, -1.5); // Start at TX Zigbee
+
+            addLog("Zigbee TX: ALERT_PACKET [Priority: High]", "tx");
+
+            new TWEEN.Tween(packetMesh.position)
+                .to({x: 8}, CONFIG.ZIGBEE_SPEED)
+                .easing(TWEEN.Easing.Quadratic.InOut)
+                .onComplete(() => {
+                    packetMesh.visible = false;
+                    document.getElementById('text-link').innerText = "IDLE";
+                    document.getElementById('text-link').style.color = "#94a3b8";
+                    
+                    // Trigger Receiver Actions
+                    document.getElementById('text-buzzer').innerText = "ACTIVE";
+                    document.getElementById('text-buzzer').style.color = "#ef4444";
+                    updateLCD("!! FIRE ALERT !!", `T:${state.temp}C G:${state.gas}`, 'alert');
+                    
+                    // Pulse Receiver Buzzer
+                    new TWEEN.Tween(rxBuzzer.scale)
+                        .to({x: 1.2, z: 1.2}, 100).yoyo(true).repeat(5).start();
                 })
                 .start();
+        }
 
-            // 2. Transmit Signal (after small delay)
-            setTimeout(() => {
-                packet.visible = true;
-                document.getElementById('status-signal').innerText = "Transmitting...";
+        function checkLogic() {
+            state.temp = parseFloat(inputTemp.value);
+            state.gas = parseInt(inputGas.value);
+
+            // Update UI Displays
+            dispTemp.innerText = state.temp.toFixed(1) + "°C";
+            dispGas.innerText = state.gas + " PPM";
+
+            // Visual Updates (Smoke)
+            if(state.gas > 50) {
+                smokeMat.opacity = Math.min((state.gas - 50) / 200, 0.8);
+                smokeMat.color.setHex(0x555555);
+            } else {
+                smokeMat.opacity = 0;
+            }
+            // Fire Effect if hot
+            if(state.temp > 80 && state.gas > 100) {
+                smokeMat.color.setHex(0xff4400); // Turn smoke to fire color
+            }
+
+            // --- DUAL VERIFICATION LOGIC [cite: 14] ---
+            const tempHigh = state.temp >= CONFIG.TEMP_THRESHOLD;
+            const gasHigh = state.gas >= CONFIG.GAS_THRESHOLD;
+            
+            const isFire = tempHigh && gasHigh; // AND Gate
+
+            const stateText = document.getElementById('text-state');
+            const indNode1 = document.getElementById('ind-node1');
+            const indNode2 = document.getElementById('ind-node2');
+
+            if(isFire) {
+                stateText.innerText = "CRITICAL ALERT";
+                stateText.style.color = "#ef4444";
+                indNode1.className = "status-indicator danger";
+                indNode2.className = "status-indicator danger";
+
+                // Local Buzzer Visual
+                txBuzzer.scale.set(1.1, 1.1, 1.1);
+
+                if(!state.lastAlert) {
+                    addLog("Node 1: Dual Threshold Breached! Triggering Logic.", "alert");
+                    sendZigbeePacket();
+                }
+            } else if (tempHigh || gasHigh) {
+                stateText.innerText = "PRE-ALERT (VERIFYING)";
+                stateText.style.color = "#f59e0b";
+                indNode1.className = "status-indicator warning";
+                indNode2.className = "status-indicator safe"; // HQ not alerted yet
                 
-                // Tween Position from Left XBee (-6) to Right XBee (+6)
-                new TWEEN.Tween(packet.position)
-                    .to({x: 6}, 1500)
-                    .easing(TWEEN.Easing.Quadratic.InOut)
-                    .onComplete(() => {
-                        packet.visible = false;
-                        packet.position.x = -6; // Reset
-                        triggerAlert();
-                    })
-                    .start();
-            }, 2000);
+                // Reset HQ if we dropped from Crit
+                if(state.lastAlert) {
+                    updateLCD("SYSTEM MONITORING", "Status: Safe", 'safe');
+                    document.getElementById('text-buzzer').innerText = "OFF";
+                    document.getElementById('text-buzzer').style.color = "#94a3b8";
+                }
+                
+                txBuzzer.scale.set(1, 1, 1);
+            } else {
+                stateText.innerText = "SAFE";
+                stateText.style.color = "#10b981";
+                indNode1.className = "status-indicator safe";
+                indNode2.className = "status-indicator safe";
+                
+                if(state.lastAlert) {
+                    updateLCD("SYSTEM MONITORING", "Status: Safe", 'safe');
+                    document.getElementById('text-buzzer').innerText = "OFF";
+                    document.getElementById('text-buzzer').style.color = "#94a3b8";
+                }
+                txBuzzer.scale.set(1, 1, 1);
+            }
+
+            state.lastAlert = isFire;
         }
 
-        function triggerAlert() {
-            document.getElementById('status-signal').innerText = "Received";
-            document.getElementById('status-alert').innerText = "BUZZER ON";
-            document.getElementById('status-alert').classList.add('alert');
-            
-            // Update LCD
-            lcdMat.map = lcdFireTex;
-            
-            // Shake Buzzer
-            const startY = buzzer.position.y;
-            new TWEEN.Tween(buzzer.scale)
-                .to({x: 1.5, z: 1.5}, 100)
-                .yoyo(true)
-                .repeat(10)
-                .start();
+        // --- LOOP & EVENTS ---
+
+        inputTemp.addEventListener('input', checkLogic);
+        inputGas.addEventListener('input', checkLogic);
+
+        window.resetSim = function() {
+            inputTemp.value = 24;
+            inputGas.value = 40;
+            checkLogic();
+            updateLCD("SYSTEM READY", "Waiting for Data...", 'safe');
+            addLog("System Reset. Sensors Calibrating...");
         }
 
-        function resetSimulation() {
-            isSimulating = false;
-            
-            // Reset UI
-            document.getElementById('status-smoke').innerText = "Normal";
-            document.getElementById('status-smoke').style.color = "#00ff9d";
-            document.getElementById('status-temp').innerText = "24°C";
-            document.getElementById('status-temp').style.color = "#00ff9d";
-            document.getElementById('status-signal').innerText = "Idle";
-            document.getElementById('status-alert').innerText = "NONE";
-            document.getElementById('status-alert').classList.remove('alert');
-
-            // Reset 3D
-            particleMat.opacity = 0;
-            packet.visible = false;
-            packet.position.x = -8;
-            lcdMat.map = lcdSafeTex;
-            buzzer.scale.set(1,1,1);
-            TWEEN.removeAll();
-        }
-
-        function toggleSlides() {
-            const overlay = document.getElementById('slides-overlay');
-            overlay.style.display = overlay.style.display === 'flex' ? 'none' : 'flex';
-        }
-
-        // --- RENDER LOOP ---
         function animate(time) {
             requestAnimationFrame(animate);
             TWEEN.update(time);
             controls.update();
+            renderer.render(scene, camera);
 
-            // Animate Fire Particles
-            if(particleMat.opacity > 0) {
-                const positions = fireSystem.geometry.attributes.position.array;
-                for(let i=0; i<particleCount; i++) {
-                    // Move up
-                    positions[i*3+1] += particleVelocities[i].y;
-                    
-                    // Reset if too high
-                    if(positions[i*3+1] > 3) {
-                        positions[i*3+1] = 0.5;
-                    }
+            // Animate Smoke
+            if(smokeMat.opacity > 0) {
+                const positions = smokeSys.geometry.attributes.position.array;
+                for(let i=1; i<positions.length; i+=3) {
+                    positions[i] += 0.05; // Rise
+                    if(positions[i] > 5) positions[i] = 0; // Reset
                 }
-                fireSystem.geometry.attributes.position.needsUpdate = true;
+                smokeSys.geometry.attributes.position.needsUpdate = true;
             }
 
-            renderer.render(scene, camera);
+            // Sync 3D labels
+            labels.forEach(l => {
+                const vector = l.pos.clone();
+                vector.project(camera);
+                const x = (vector.x * .5 + .5) * window.innerWidth;
+                const y = -(vector.y * .5 - .5) * window.innerHeight;
+                l.div.style.transform = `translate(${x}px, ${y}px)`;
+                // Hide if behind camera
+                l.div.style.display = vector.z > 1 ? 'none' : 'block';
+            });
         }
 
+        // Init
         animate();
+        addLog("System Boot sequence initiated...");
+        addLog("STM32 ADC Calibrated.");
+        addLog("Zigbee Mesh Network Established.");
+        checkLogic(); // Initial state
 
-        // Handle Resize
+        // Handle Window Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // Hide loading screen after page loads
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const loadingScreen = document.getElementById('loading-screen');
-                loadingScreen.style.opacity = '0';
-                setTimeout(() => {
-                    loadingScreen.style.display = 'none';
-                }, 500);
-            }, 1000); // Delay for better UX
-        });
-
-        // Smooth scrolling for navigation links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
         });
 
     </script>
