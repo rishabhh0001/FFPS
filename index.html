@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Forest Fire Detection System | STM32 & Zigbee WSN</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,14 +14,14 @@
     <style>
         :root {
             --bg-color: #0f172a;
-            --panel-bg: rgba(30, 41, 59, 0.95); /* Increased opacity */
-            --border-color: rgba(148, 163, 184, 0.3);
+            --panel-bg: rgba(15, 23, 42, 0.85); /* Slightly more transparent for better mobile feel */
+            --border-color: rgba(148, 163, 184, 0.2);
             --primary: #3b82f6;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
             --text-main: #f1f5f9;
-            --text-muted: #cbd5e1; /* Brighter muted text */
+            --text-muted: #cbd5e1;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -30,18 +30,16 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             font-family: 'Inter', sans-serif;
-            overflow: hidden;
+            overflow: hidden; /* Prevent body scroll, handle in UI layer */
             height: 100vh;
             width: 100vw;
+            touch-action: none; /* Prevent standard touch actions on canvas */
         }
 
         /* --- 3D Canvas --- */
         #canvas-container {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             z-index: 1;
             background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
         }
@@ -49,149 +47,158 @@
         /* --- UI Overlay Layer --- */
         #ui-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             z-index: 10;
             pointer-events: none; /* Pass clicks to 3D */
-            display: grid;
-            grid-template-columns: 350px 1fr 350px;
-            grid-template-rows: 60px 1fr auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
             padding: 20px;
-            gap: 20px;
+            overflow-y: auto; /* Allow scrolling if UI is taller than screen on mobile */
         }
 
-        /* --- Panels --- */
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: auto;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 20px;
+            backdrop-filter: blur(8px);
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        .brand { display: flex; align-items: center; gap: 15px; }
+        .brand h1 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+        .brand span { color: var(--primary); background: rgba(59, 130, 246, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; white-space: nowrap; }
+
+        /* Main Content Area (Split Left/Right) */
+        .main-ui {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-grow: 1;
+            gap: 20px;
+            height: 0; /* Hack to make flex scroll work */
+            min-height: 0;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 320px;
+            max-height: 100%;
+            pointer-events: none; /* Wrapper shouldn't block, children will re-enable */
+        }
+
+        /* Panels */
         .panel {
             background: var(--panel-bg);
             backdrop-filter: blur(12px);
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            padding: 20px;
-            pointer-events: auto; /* Enable clicks on panels */
+            padding: 15px;
+            pointer-events: auto;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
             transition: transform 0.3s ease;
         }
 
         .panel h2 {
-            font-size: 14px;
+            font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 1px;
             color: var(--text-muted);
             border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            padding-bottom: 8px;
+            margin-bottom: 0;
+            display: flex; align-items: center; gap: 8px;
         }
 
-        /* Header */
-        header {
-            grid-column: 1 / -1;
-            grid-row: 1;
+        /* Specific Panels */
+        #logs-panel {
+            flex-grow: 1;
+            min-height: 150px;
+            overflow: hidden; /* Internal scroll */
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            pointer-events: auto;
-            background: rgba(15, 23, 42, 0.8);
-            border-bottom: 1px solid var(--border-color);
-            margin: -20px -20px 0 -20px; /* Full width */
-            padding: 0 30px;
-            backdrop-filter: blur(5px);
+            flex-direction: column;
+        }
+        #log-content {
+            overflow-y: auto;
+            flex-grow: 1;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding-right: 5px;
         }
 
-        .brand { display: flex; align-items: center; gap: 15px; }
-        .brand h1 { font-size: 1.2rem; font-weight: 600; }
-        .brand span { color: var(--primary); background: rgba(59, 130, 246, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
-
-        /* Left Column */
-        #controls-panel { grid-column: 1; grid-row: 2; align-self: start; }
+        /* Controls */
+        .control-group { display: flex; flex-direction: column; gap: 6px; }
+        .control-group label { font-size: 0.8rem; display: flex; justify-content: space-between; }
         
-        /* Left Column Bottom (Mouse Controls) */
+        input[type="range"] {
+            width: 100%; accent-color: var(--primary); height: 6px;
+            background: #334155; border-radius: 3px; appearance: none; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none; width: 18px; height: 18px; background: var(--text-main);
+            border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px rgba(255,255,255,0.3); margin-top: -6px;
+        }
+        input[type="range"]::-webkit-slider-runnable-track { height: 6px; background: #334155; border-radius: 3px; }
+        .value-display { font-family: 'JetBrains Mono', monospace; color: var(--primary); font-size: 0.9rem; }
+
+        /* Mouse/Touch Guide */
         #mouse-controls {
-            grid-column: 1;
-            grid-row: 3;
-            align-self: end;
             background: rgba(15, 23, 42, 0.9);
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
             border: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             pointer-events: auto;
-            z-index: 100; /* Force visible */
+            margin-top: auto; /* Push to bottom of column */
         }
-        .mouse-item { display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: var(--text-main); }
-        .mouse-item i { color: var(--primary); font-size: 1rem; width: 20px; text-align: center; }
+        .mouse-item { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--text-main); }
+        .mouse-item i { color: var(--primary); font-size: 0.9rem; width: 16px; text-align: center; }
 
-        /* Right Column */
-        #status-panel { grid-column: 3; grid-row: 2; align-self: start; }
-        #logs-panel { 
-            grid-column: 3; 
-            grid-row: 3; 
-            height: 200px; 
-            font-family: 'JetBrains Mono', monospace; 
-            font-size: 0.8rem; 
-            overflow-y: auto; 
-            margin-bottom: 60px; /* Space for button */
-        }
-
-        /* Control Inputs */
-        .control-group { display: flex; flex-direction: column; gap: 8px; }
-        .control-group label { font-size: 0.85rem; display: flex; justify-content: space-between; }
-        
-        input[type="range"] {
-            width: 100%; accent-color: var(--primary); height: 6px;
-            background: #334155; border-radius: 3px; appearance: none;
-            cursor: pointer;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            appearance: none; width: 18px; height: 18px; background: var(--text-main);
-            border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px rgba(255,255,255,0.3);
-            margin-top: -6px; /* Center thumb */
-        }
-        input[type="range"]::-webkit-slider-runnable-track {
-            height: 6px; background: #334155; border-radius: 3px;
-        }
-
-        .value-display { font-family: 'JetBrains Mono', monospace; color: var(--primary); }
-
-        /* Status Indicators */
+        /* Status Rows */
         .status-row {
             display: flex; justify-content: space-between; align-items: center;
-            font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
-            padding: 10px 0; border-bottom: 1px dashed var(--border-color);
+            font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+            padding: 8px 0; border-bottom: 1px dashed var(--border-color);
         }
-        .status-indicator { width: 12px; height: 12px; border-radius: 50%; background-color: #334155; box-shadow: 0 0 8px currentColor; }
+        .status-indicator { width: 10px; height: 10px; border-radius: 50%; background-color: #334155; box-shadow: 0 0 8px currentColor; }
         .status-indicator.safe { background-color: var(--success); color: var(--success); }
         .status-indicator.warning { background-color: var(--warning); color: var(--warning); }
         .status-indicator.danger { background-color: var(--danger); color: var(--danger); animation: pulse 0.5s infinite alternate; }
         @keyframes pulse { from { opacity: 1; } to { opacity: 0.4; } }
 
         /* Logs */
-        .log-entry { margin-bottom: 6px; display: flex; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px; }
-        .log-time { color: var(--text-muted); opacity: 0.7; }
+        .log-entry { margin-bottom: 4px; display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px; }
+        .log-time { color: var(--text-muted); opacity: 0.7; font-size: 0.7rem; }
         .log-msg { color: var(--text-main); }
         .log-msg.alert { color: var(--danger); font-weight: bold; }
         .log-msg.tx { color: var(--primary); }
 
         /* Portfolio Button */
         .portfolio-btn {
-            position: fixed; bottom: 30px; right: 30px;
             background: rgba(15, 23, 42, 0.95); border: 1px solid var(--primary);
-            padding: 12px 24px; border-radius: 8px; color: var(--text-main);
+            padding: 10px 16px; border-radius: 8px; color: var(--text-main);
             text-decoration: none; font-family: 'Inter', sans-serif; font-weight: 600;
-            font-size: 0.95rem; transition: all 0.3s ease; z-index: 200; pointer-events: auto;
-            display: flex; align-items: center; gap: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-size: 0.85rem; transition: all 0.3s ease; pointer-events: auto;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin-top: 10px;
+            justify-content: center;
         }
-        .portfolio-btn:hover { background: var(--primary); color: rgb(204, 204, 204); transform: translateY(-4px); box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4); }
+        .portfolio-btn:hover { background: var(--primary); color: white; transform: translateY(-2px); }
 
         /* 3D Label Styles */
         .label-3d {
@@ -199,13 +206,71 @@
             border: 1px solid var(--primary); padding: 4px 8px; border-radius: 4px;
             font-size: 10px; color: var(--primary); font-family: 'JetBrains Mono', monospace;
             pointer-events: none; transform: translate(-50%, -50%); white-space: nowrap;
+            z-index: 5;
         }
 
+        /* --- RESPONSIVE BREAKPOINTS --- */
+        
+        /* Tablet & Mobile (Portrait or Small Screens) */
         @media (max-width: 900px) {
-            #ui-layer { grid-template-columns: 1fr; grid-template-rows: auto auto auto auto 1fr; overflow-y: auto; pointer-events: auto; }
-            #controls-panel, #status-panel, #mouse-controls, #logs-panel { grid-column: 1; grid-row: auto; width: 100%; }
-            #logs-panel { display: block; margin-bottom: 80px; }
-            .portfolio-btn { width: calc(100% - 40px); justify-content: center; bottom: 20px; right: 20px; }
+            #ui-layer {
+                display: block; /* Switch to block flow for scrolling */
+                padding: 10px;
+                overflow-y: auto; /* Enable native scrolling */
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .main-ui {
+                display: block; /* Stack columns */
+                height: auto;
+            }
+
+            .column {
+                width: 100%; /* Full width */
+                max-width: none;
+                margin-bottom: 15px;
+                gap: 15px;
+            }
+
+            header {
+                position: sticky;
+                top: 0;
+                z-index: 20;
+                margin-bottom: 15px;
+            }
+            
+            .brand h1 { font-size: 1rem; }
+            .brand span { display: none; /* Hide subtitle on very small screens to save space */ }
+            
+            #canvas-container {
+                position: fixed; /* Keep canvas fixed in background */
+            }
+
+            /* Adjust controls for touch */
+            input[type="range"] { height: 12px; }
+            input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; margin-top: -6px; }
+
+            /* Hide Mouse Controls on Mobile (since it uses touch) */
+            #mouse-controls { display: none; }
+            
+            /* Add touch hint */
+            #touch-hint {
+                display: block;
+                text-align: center;
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                padding: 10px;
+                background: var(--panel-bg);
+                border-radius: 8px;
+                margin-bottom: 10px;
+                pointer-events: auto;
+            }
+        }
+
+        /* Large Desktop Zoom handling */
+        @media (min-width: 1600px) {
+            .column { width: 380px; }
+            body { font-size: 18px; }
         }
     </style>
     
@@ -223,65 +288,75 @@
                 <i class="fa-solid fa-tower-broadcast" style="color: var(--primary)"></i>
                 <div>
                     <h1>Fire Detection Sys.</h1>
-                    <span style="color: var(--text-muted); font-size: 0.7rem">STM32F303RET6 + Zigbee (IEEE 802.15.4)</span>
+                    <span style="display: inline-block;">STM32 + Zigbee</span>
                 </div>
             </div>
-            <div style="text-align: right">
-                <button onclick="resetSim()" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: 'Inter'; transition: background 0.2s;">
-                    <i class="fa-solid fa-rotate-right"></i> Reset System
+            <div>
+                <button onclick="resetSim()" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-family: 'Inter'; font-size: 0.8rem;">
+                    <i class="fa-solid fa-rotate-right"></i> Reset
                 </button>
             </div>
         </header>
 
-        <div id="controls-panel" class="panel">
-            <h2><i class="fa-solid fa-sliders"></i> Environmental Inputs</h2>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
-                Simulate environmental conditions to test the Dual-Verification Logic.
-            </p>
+        <div class="main-ui">
+            <div class="column">
+                <div id="controls-panel" class="panel">
+                    <h2><i class="fa-solid fa-sliders"></i> Simulation Inputs</h2>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">
+                        Adjust sensors to trigger Dual-Verification Logic.
+                    </p>
 
-            <div class="control-group">
-                <label>
-                    <span><i class="fa-solid fa-temperature-half"></i> Ambient Temp (DHT22)</span>
-                    <span class="value-display" id="val-temp">24.0°C</span>
-                </label>
-                <input type="range" id="input-temp" min="10" max="100" value="24" step="0.5">
-                <small style="color: var(--text-muted); font-size: 0.7rem">Threshold: >50°C</small>
+                    <div class="control-group">
+                        <label>
+                            <span><i class="fa-solid fa-temperature-half"></i> Temp (DHT22)</span>
+                            <span class="value-display" id="val-temp">24.0°C</span>
+                        </label>
+                        <input type="range" id="input-temp" min="10" max="100" value="24" step="0.5">
+                        <small style="color: var(--text-muted); font-size: 0.7rem">Alert Threshold: >50°C</small>
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <span><i class="fa-solid fa-smog"></i> Smoke (MQ-2)</span>
+                            <span class="value-display" id="val-gas">40 PPM</span>
+                        </label>
+                        <input type="range" id="input-gas" min="0" max="500" value="40" step="1">
+                        <small style="color: var(--text-muted); font-size: 0.7rem">Alert Threshold: >180 PPM</small>
+                    </div>
+                </div>
+
+                <div id="mouse-controls">
+                    <div class="mouse-item"><i class="fa-solid fa-computer-mouse"></i> Left Click: Rotate</div>
+                    <div class="mouse-item"><i class="fa-solid fa-hand-pointer"></i> Right Click: Pan</div>
+                    <div class="mouse-item"><i class="fa-solid fa-up-down"></i> Scroll: Zoom</div>
+                </div>
+                
+                <div id="touch-hint" style="display:none;">
+                    <i class="fa-solid fa-fingerprint"></i> Use one finger to rotate, two to pinch/zoom
+                </div>
             </div>
 
-            <div class="control-group">
-                <label>
-                    <span><i class="fa-solid fa-smog"></i> Gas/Smoke (MQ-2)</span>
-                    <span class="value-display" id="val-gas">40 PPM</span>
-                </label>
-                <input type="range" id="input-gas" min="0" max="500" value="40" step="1">
-                <small style="color: var(--text-muted); font-size: 0.7rem">Threshold: >180 PPM</small>
+            <div class="column">
+                <div id="status-panel" class="panel">
+                    <h2><i class="fa-solid fa-microchip"></i> Telemetry</h2>
+                    <div class="status-row"><span>Node 1 (Forest)</span><span class="status-indicator safe" id="ind-node1"></span></div>
+                    <div class="status-row"><span>Logic State</span><span id="text-state" style="color: var(--success)">SAFE</span></div>
+                    <div class="status-row"><span>Zigbee Link</span><span id="text-link" style="color: var(--text-muted)">IDLE</span></div>
+                    <div class="status-row"><span>Node 2 (HQ)</span><span class="status-indicator safe" id="ind-node2"></span></div>
+                    <div class="status-row"><span>HQ Buzzer</span><span id="text-buzzer">OFF</span></div>
+                </div>
+
+                <div id="logs-panel" class="panel">
+                    <h2><i class="fa-solid fa-terminal"></i> System Logs</h2>
+                    <div id="log-content"></div>
+                </div>
+
+                <a href="https://rishabhj.in" target="_blank" class="portfolio-btn">
+                    <i class="fa-solid fa-user-astronaut"></i> Portfolio (rishabhj.in)
+                </a>
             </div>
-        </div>
-
-        <div id="mouse-controls">
-            <div class="mouse-item"><i class="fa-solid fa-computer-mouse"></i> Left Click + Drag to Rotate</div>
-            <div class="mouse-item"><i class="fa-solid fa-hand-pointer"></i> Right Click + Drag to Pan</div>
-            <div class="mouse-item"><i class="fa-solid fa-up-down"></i> Scroll Wheel to Zoom</div>
-        </div>
-
-        <div id="status-panel" class="panel">
-            <h2><i class="fa-solid fa-microchip"></i> System Telemetry</h2>
-            <div class="status-row"><span>Node 1 (Forest)</span><span class="status-indicator safe" id="ind-node1"></span></div>
-            <div class="status-row"><span>Dual-Logic State</span><span id="text-state" style="color: var(--success)">SAFE</span></div>
-            <div class="status-row"><span>Zigbee Link</span><span id="text-link" style="color: var(--text-muted)">IDLE</span></div>
-            <div class="status-row"><span>Node 2 (HQ)</span><span class="status-indicator safe" id="ind-node2"></span></div>
-            <div class="status-row"><span>HQ Buzzer</span><span id="text-buzzer">OFF</span></div>
-        </div>
-
-        <div id="logs-panel" class="panel">
-            <h2><i class="fa-solid fa-terminal"></i> Serial Output / Logs</h2>
-            <div id="log-content"></div>
         </div>
     </div>
-
-    <a href="https://rishabhj.in" target="_blank" class="portfolio-btn">
-        <i class="fa-solid fa-user-astronaut"></i> View Portfolio (rishabhj.in)
-    </a>
 
     <script>
         // --- CONFIGURATION ---
@@ -305,9 +380,16 @@
         scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 15, 30);
+        
+        // Responsive initial camera position
+        if (window.innerWidth < 768) {
+             camera.position.set(0, 25, 40); // Further back for mobile
+        } else {
+             camera.position.set(0, 15, 30);
+        }
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(window.devicePixelRatio); // Sharpness on high DPI screens
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -318,7 +400,7 @@
         controls.dampingFactor = 0.05;
         controls.maxPolarAngle = Math.PI / 2 - 0.05; 
         controls.minDistance = 5;
-        controls.maxDistance = 50;
+        controls.maxDistance = 80;
 
         // --- LIGHTING ---
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x0f172a, 0.6);
@@ -330,6 +412,19 @@
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
         scene.add(dirLight);
+
+        // --- MATERIALS ---
+        const mats = {
+            pcbBlue: new THREE.MeshPhongMaterial({ color: 0x0044cc, shininess: 80 }),
+            pcbGreen: new THREE.MeshPhongMaterial({ color: 0x005500, shininess: 50 }),
+            blackPlastic: new THREE.MeshPhongMaterial({ color: 0x111111, roughness: 0.6 }),
+            whitePlastic: new THREE.MeshPhongMaterial({ color: 0xf8fafc }),
+            metal: new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.3 }),
+            wireRed: new THREE.MeshBasicMaterial({ color: 0xef4444 }),
+            wireYell: new THREE.MeshBasicMaterial({ color: 0xf59e0b }),
+            ground: new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 1 }),
+            tree: new THREE.MeshLambertMaterial({ color: 0x1e293b })
+        };
 
         // --- SMOKE TEXTURE ---
         function createSmokeTexture() {
@@ -344,19 +439,6 @@
             return new THREE.CanvasTexture(canvas);
         }
         const smokeTexture = createSmokeTexture();
-
-        // --- MATERIALS ---
-        const mats = {
-            pcbBlue: new THREE.MeshPhongMaterial({ color: 0x0044cc, shininess: 80 }),
-            pcbGreen: new THREE.MeshPhongMaterial({ color: 0x005500, shininess: 50 }),
-            blackPlastic: new THREE.MeshPhongMaterial({ color: 0x111111, roughness: 0.6 }),
-            whitePlastic: new THREE.MeshPhongMaterial({ color: 0xf8fafc }),
-            metal: new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.3 }),
-            wireRed: new THREE.MeshBasicMaterial({ color: 0xef4444 }),
-            wireYell: new THREE.MeshBasicMaterial({ color: 0xf59e0b }),
-            ground: new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 1 }),
-            tree: new THREE.MeshLambertMaterial({ color: 0x1e293b })
-        };
 
         // --- HARDWARE MODELS ---
         function createNucleo(x, z) {
@@ -402,7 +484,9 @@
 
         // --- SCENE BUILDING ---
         const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), mats.ground); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-        for(let i=0; i<100; i++) {
+        
+        // Procedural Forest
+        for(let i=0; i<80; i++) {
             const h = 2 + Math.random() * 5; const tree = new THREE.Mesh(new THREE.ConeGeometry(1, h, 8), mats.tree);
             const r = 20 + Math.random() * 40; const theta = Math.random() * Math.PI * 2;
             tree.position.set(r * Math.cos(theta), h/2, r * Math.sin(theta)); scene.add(tree);
@@ -466,7 +550,7 @@
         function sendZigbeePacket() {
             document.getElementById('text-link').innerText = "TRANSMITTING"; document.getElementById('text-link').style.color = "#3b82f6";
             packetMesh.visible = true; packetMesh.position.set(-8, 1, -1.5);
-            addLog("Zigbee TX: ALERT_PACKET [Priority: High]", "tx");
+            addLog("Zigbee TX: ALERT_PACKET", "tx");
             new TWEEN.Tween(packetMesh.position).to({x: 8}, CONFIG.ZIGBEE_SPEED).easing(TWEEN.Easing.Quadratic.InOut).onComplete(() => {
                 packetMesh.visible = false; document.getElementById('text-link').innerText = "IDLE"; document.getElementById('text-link').style.color = "#94a3b8";
                 document.getElementById('text-buzzer').innerText = "ACTIVE"; document.getElementById('text-buzzer').style.color = "#ef4444";
@@ -488,7 +572,7 @@
                 stateText.innerText = "CRITICAL ALERT"; stateText.style.color = "#ef4444";
                 indNode1.className = "status-indicator danger"; indNode2.className = "status-indicator danger";
                 txBuzzer.scale.set(1.1, 1.1, 1.1);
-                if(!state.lastAlert) { addLog("Node 1: Dual Threshold Breached! Triggering Logic.", "alert"); sendZigbeePacket(); }
+                if(!state.lastAlert) { addLog("Dual Threshold Breached! Fire Confirmed.", "alert"); sendZigbeePacket(); }
             } else if (tempHigh || gasHigh) {
                 stateText.innerText = "PRE-ALERT (VERIFYING)"; stateText.style.color = "#f59e0b";
                 indNode1.className = "status-indicator warning"; indNode2.className = "status-indicator safe";
@@ -504,7 +588,7 @@
         }
 
         inputTemp.addEventListener('input', checkLogic); inputGas.addEventListener('input', checkLogic);
-        window.resetSim = function() { inputTemp.value = 24; inputGas.value = 40; checkLogic(); updateLCD("SYSTEM READY", "Waiting for Data...", 'safe'); addLog("System Reset. Sensors Calibrating..."); }
+        window.resetSim = function() { inputTemp.value = 24; inputGas.value = 40; checkLogic(); updateLCD("SYSTEM READY", "Waiting for Data...", 'safe'); addLog("System Reset..."); }
 
         function animate(time) {
             requestAnimationFrame(animate); TWEEN.update(time); controls.update();
@@ -526,8 +610,18 @@
                 l.div.style.transform = `translate(${x}px, ${y}px)`; l.div.style.display = vector.z > 1 ? 'none' : 'block';
             });
         }
-        animate(); addLog("System Boot sequence initiated..."); checkLogic();
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        animate(); addLog("System Boot..."); checkLogic();
+        
+        window.addEventListener('resize', () => { 
+            camera.aspect = window.innerWidth / window.innerHeight; 
+            camera.updateProjectionMatrix(); 
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (window.innerWidth < 900) { document.getElementById('touch-hint').style.display = 'block'; }
+            else { document.getElementById('touch-hint').style.display = 'none'; }
+        });
+        
+        // Initial Check for Touch Hint
+        if (window.innerWidth < 900) document.getElementById('touch-hint').style.display = 'block';
     </script>
 </body>
 </html>
