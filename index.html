@@ -195,6 +195,40 @@
         .log-msg.alert { color: var(--danger); font-weight: bold; }
         .log-msg.tx { color: var(--primary); }
 
+        /* Portfolio Button */
+        .portfolio-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--primary);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            z-index: 100;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .portfolio-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4);
+        }
+
+        .portfolio-btn i {
+            font-size: 1.1em;
+        }
+
         /* 3D Label Styles */
         .label-3d {
             position: absolute;
@@ -220,6 +254,12 @@
             }
             #controls-panel, #status-panel { grid-column: 1; }
             #logs-panel { display: none; }
+            .portfolio-btn {
+                bottom: 20px;
+                right: 20px;
+                padding: 10px 20px;
+                font-size: 0.85rem;
+            }
         }
     </style>
     
@@ -304,9 +344,13 @@
         </div>
     </div>
 
+    <a href="https://rishabhj.in" target="_blank" class="portfolio-btn">
+        <i class="fa-solid fa-user-astronaut"></i> View Portfolio (rishabhj.in)
+    </a>
+
     <script>
         // --- CONFIGURATION BASED ON REPORT ---
-        // Thresholds derived from Report [cite: 37, 196]
+        // Thresholds derived from Report
         const CONFIG = {
             TEMP_THRESHOLD: 50.0,
             GAS_THRESHOLD: 180,
@@ -662,7 +706,7 @@
                 smokeMat.color.setHex(0xff4400); // Turn smoke to fire color
             }
 
-            // --- DUAL VERIFICATION LOGIC [cite: 14] ---
+            // --- DUAL VERIFICATION LOGIC ---
             const tempHigh = state.temp >= CONFIG.TEMP_THRESHOLD;
             const gasHigh = state.gas >= CONFIG.GAS_THRESHOLD;
             
