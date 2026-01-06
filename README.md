@@ -1,6 +1,6 @@
 # Forest Fire Detection System WSN
 
-![Forest Fire Detection](https://ffds.rishabhj.in)  
+[Forest Fire Detection](https://ffds.rishabhj.in)  
 
 ---
 
